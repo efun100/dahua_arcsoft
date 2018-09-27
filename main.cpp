@@ -31,14 +31,12 @@ MHandle hDetectEngine = NULL;
 //断线回调
 void CALL_METHOD Disconnect(LLONG lLoginID, char *pchDVRIP, LONG nDVRPort, LDWORD dwUser)
 {
-	cout << "Receive disconnect message, where ip:" << pchDVRIP <<
-	    " and port:" << nDVRPort << " and login handle:" << lLoginID <<
-	    endl;
+	cout << "Receive disconnect message, where ip:" << pchDVRIP << " and port:" << nDVRPort << " and login handle:" <<
+	     lLoginID << endl;
 }
 
 // netsdk 实时回调函数
-void CALL_METHOD fRealDataCB(LLONG lRealHandle, DWORD dwDataType,
-			     BYTE * pBuffer, DWORD dwBufSize, LDWORD dwUser)
+void CALL_METHOD fRealDataCB(LLONG lRealHandle, DWORD dwDataType, BYTE * pBuffer, DWORD dwBufSize, LDWORD dwUser)
 {
 	// 把大华实时码流数据送到playsdk中
 	PLAY_InputData(gPlayPort, pBuffer, dwBufSize);
@@ -47,12 +45,32 @@ void CALL_METHOD fRealDataCB(LLONG lRealHandle, DWORD dwDataType,
 
 int gnIndex = 0;
 // playsdk 回调 yuv数据
-void CALL_METHOD fDisplayCB(LONG nPort, char *pBuf, LONG nSize, LONG nWidth,
-			    LONG nHeight, LONG nStamp, LONG nType,
-			    void *pReserved)
+void CALL_METHOD fDisplayCB(LONG nPort, char *pBuf, LONG nSize, LONG nWidth, LONG nHeight, LONG nStamp, LONG nType,
+                            void *pReserved)
 {
 	SDL_Rect sdlRect;
 	// cout << "nSize:" << nSize << ", nWidth:" << nWidth << ", nHeight:" << nHeight << endl;
+	ASVLOFFSCREEN inputImg = { 0 };
+	inputImg.u32PixelArrayFormat = ASVL_PAF_I420;
+	inputImg.i32Width = nWidth;
+	inputImg.i32Height = nHeight;
+	inputImg.ppu8Plane[0] = (MUInt8 *)pBuf;
+
+	inputImg.pi32Pitch[0] = inputImg.i32Width;
+	inputImg.pi32Pitch[1] = inputImg.i32Width / 2;
+	inputImg.pi32Pitch[2] = inputImg.i32Width / 2;
+	inputImg.ppu8Plane[1] = inputImg.ppu8Plane[0] + inputImg.pi32Pitch[0] * inputImg.i32Height;
+	inputImg.ppu8Plane[2] = inputImg.ppu8Plane[1] + inputImg.pi32Pitch[1] * inputImg.i32Height / 2;
+
+	LPAFD_FSDK_FACERES faceResults;
+	int ret = AFD_FSDK_StillImageFaceDetection(hDetectEngine, &inputImg, &faceResults);
+	if (ret != 0) {
+		cout << "face detect failed" << endl;
+	}
+	for (int i = 0; i < faceResults->nFace; i++) {
+		printf("face %d:(%d,%d,%d,%d)\r\n", i, faceResults->rcFace[i].left, faceResults->rcFace[i].top,
+		       faceResults->rcFace[i].right, faceResults->rcFace[i].bottom);
+	}
 
 	//pBuf是数据指针 nSize是buf大小，通过这两个数据，可以取到yuv数据了
 	SDL_UpdateTexture(sdlTexture, NULL, pBuf, nWidth);
@@ -67,7 +85,8 @@ void CALL_METHOD fDisplayCB(LONG nPort, char *pBuf, LONG nSize, LONG nWidth,
 	SDL_RenderPresent(sdlRenderer);
 }
 
-void sdl_init(void) {
+void init_sdl(void)
+{
 	Uint32 pixformat = 0;
 	SDL_Thread *refresh_thread;
 
@@ -78,11 +97,10 @@ void sdl_init(void) {
 		return;
 	}
 	//SDL 2.0 Support for multiple windows
-	screen = SDL_CreateWindow("Simplest Video Play SDL2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-	                     screen_w, screen_h, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+	screen = SDL_CreateWindow("Simplest Video Play SDL2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, screen_w,
+	                          screen_h, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 	if (!screen) {
-		printf("SDL: could not create window - exiting:%s\n",
-		       SDL_GetError());
+		printf("SDL: could not create window - exiting:%s\n", SDL_GetError());
 		return;
 	}
 
@@ -92,19 +110,19 @@ void sdl_init(void) {
 	//YV12: Y + V + U  (3 planes)
 	pixformat = SDL_PIXELFORMAT_IYUV;
 
-	sdlTexture = SDL_CreateTexture(sdlRenderer, pixformat, SDL_TEXTUREACCESS_STREAMING,
-		pixel_w, pixel_h);
+	sdlTexture = SDL_CreateTexture(sdlRenderer, pixformat, SDL_TEXTUREACCESS_STREAMING, pixel_w, pixel_h);
 }
 
-void init_arcSoft(void){
+void init_arcSoft(void)
+{
 	MByte *pDetectWorkMem = (MByte *)malloc(WORKBUF_SIZE);
 	if (pDetectWorkMem == NULL) {
 		fprintf(stderr, "fail to malloc workbuf\r\n");
 		exit(0);
 	}
 
-	int ret = AFD_FSDK_InitialFaceEngine(APPID, DETECT_SDKKEY, pDetectWorkMem, WORKBUF_SIZE,
-	                                     &hDetectEngine, AFD_FSDK_OPF_0_HIGHER_EXT, 16, MAX_FACE_NUM);
+	int ret = AFD_FSDK_InitialFaceEngine(APPID, DETECT_SDKKEY, pDetectWorkMem, WORKBUF_SIZE, &hDetectEngine,
+	                                     AFD_FSDK_OPF_0_HIGHER_EXT, 16, MAX_FACE_NUM);
 	if (ret != 0) {
 		fprintf(stderr, "fail to AFD_FSDK_InitialFaceEngine(): 0x%x\r\n", ret);
 		free(pDetectWorkMem);
@@ -134,7 +152,8 @@ int main()
 	int nPort = 37777;
 	SDL_Event event;
 
-	sdl_init();
+	init_sdl();
+	init_arcSoft();
 	//初始化SDK资源,设置断线回调函数
 	CLIENT_Init(Disconnect, 0);
 
@@ -149,10 +168,8 @@ int main()
 	NET_DEVICEINFO_Ex stLoginInfo = { 0 };
 	int nErrcode = 0;
 
-	lLoginHandle =
-	    CLIENT_LoginEx2(szIpAddr, nPort, szUser, szPwd,
-			    (EM_LOGIN_SPAC_CAP_TYPE) 0, NULL, &stLoginInfo,
-			    &nErrcode);
+	lLoginHandle = CLIENT_LoginEx2(szIpAddr, nPort, szUser, szPwd, (EM_LOGIN_SPAC_CAP_TYPE) 0, NULL, &stLoginInfo,
+	                               &nErrcode);
 	if (0 == lLoginHandle) {
 		cout << "Login device failed" << endl;
 		cin >> szIpAddr;
