@@ -9,6 +9,8 @@
 #include "include/arcsoft/arcsoft_fsdk_face_recognition.h"
 #include "include/arcsoft/merror.h"
 
+#include <opencv2/opencv.hpp>
+
 #define APPID     "DWnUNSz9cH9CbcYoEyFfjEXUCL7jZ7yCRa6aqN4BwKxb"
 #define DETECT_SDKKEY    "J1FrMM5Gho9njpmF2YJgicXhBUN9kErWyAgU2T2czgpx"
 #define RECOGNIZE_SDKKEY    "J1FrMM5Gho9njpmF2YJgicYBq5Qnzhdhas463YYr6DWS"
@@ -17,6 +19,7 @@
 #define MAX_FACE_NUM        (50)
 
 using namespace std;
+using namespace cv;
 
 // PLAYSDK的空闲通道号
 LONG gPlayPort = 0;
@@ -49,6 +52,14 @@ void CALL_METHOD fDisplayCB(LONG nPort, char *pBuf, LONG nSize, LONG nWidth, LON
                             void *pReserved)
 {
 	SDL_Rect sdlRect;
+#if 0
+	Mat yuvImg(nHeight * 3 / 2, nWidth, CV_8UC1, pBuf);
+	Mat rgbImg;
+	cvtColor(yuvImg, rgbImg, CV_YUV2BGR_I420);
+	imshow("dahua", rgbImg);
+	waitKey(1);
+#endif
+
 	// cout << "nSize:" << nSize << ", nWidth:" << nWidth << ", nHeight:" << nHeight << endl;
 	ASVLOFFSCREEN inputImg = { 0 };
 	inputImg.u32PixelArrayFormat = ASVL_PAF_I420;
@@ -151,6 +162,7 @@ int main()
 	char szPwd[32] = "1234abcd";
 	int nPort = 37777;
 	SDL_Event event;
+	// namedWindow("dahua", CV_WINDOW_NORMAL);
 
 	init_sdl();
 	init_arcSoft();
@@ -177,6 +189,10 @@ int main()
 	} else {
 		cout << "Login device success" << endl;
 	}
+#if 0
+	if (CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_EXTPTZ_RIGHTDOWN, 2, 2, 2, false) == 0)
+		printf("CLIENT_DHPTZControlEx2 DH_EXTPTZ_RIGHTDOWN Failed!Last Error[%x]\n" , CLIENT_GetLastError());
+#endif
 
 	//拉流
 	LLONG lRealHandle = CLIENT_RealPlayEx(lLoginHandle, 0, NULL);
@@ -192,14 +208,61 @@ int main()
 
 	while (1) {
 		SDL_WaitEvent(&event);
-		if (event.type == SDL_WINDOWEVENT) {
+		switch (event.type) {
+		case SDL_WINDOWEVENT:
 			//If Resize
 			SDL_GetWindowSize(screen, &screen_w, &screen_h);
-		} else if (event.type == SDL_QUIT) {
 			break;
+		case SDL_KEYDOWN:
+			switch (event.key.keysym.sym) {
+			case SDLK_LEFT:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_LEFT_CONTROL, 2, 2, 2, false);
+				break;
+			case SDLK_RIGHT:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_RIGHT_CONTROL, 2, 2, 2, false);
+				break;
+			case SDLK_UP:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_UP_CONTROL, 2, 2, 2, false);
+				break;
+			case SDLK_DOWN:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_DOWN_CONTROL, 2, 2, 2, false);
+				break;
+			case SDLK_MINUS:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_ZOOM_DEC_CONTROL, 2, 2, 2, false);
+				break;
+			case SDLK_EQUALS:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_ZOOM_ADD_CONTROL, 2, 2, 2, false);
+				break;
+			}
+			break;
+		case SDL_KEYUP:
+			switch (event.key.keysym.sym) {
+			case SDLK_LEFT:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_LEFT_CONTROL, 2, 2, 2, true);
+				break;
+			case SDLK_RIGHT:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_RIGHT_CONTROL, 2, 2, 2, true);
+				break;
+			case SDLK_UP:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_UP_CONTROL, 2, 2, 2, true);
+				break;
+			case SDLK_DOWN:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_DOWN_CONTROL, 2, 2, 2, true);
+				break;
+			case SDLK_MINUS:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_ZOOM_DEC_CONTROL, 2, 2, 2, true);
+				break;
+			case SDLK_EQUALS:
+				CLIENT_DHPTZControlEx2(lLoginHandle, 0, DH_PTZ_ZOOM_ADD_CONTROL, 2, 2, 2, true);
+				break;
+			}
+			break;
+		case SDL_QUIT:
+			goto end;
 		}
 	}
 
+end:
 	PLAY_Stop(gPlayPort);
 	PLAY_CloseStream(gPlayPort);
 	PLAY_ReleasePort(gPlayPort);
