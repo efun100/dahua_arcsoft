@@ -473,12 +473,12 @@ void init_arcSoft(void)
 
 int main()
 {
-	char szIpAddr[32] = "192.168.1.108";
-	char szUser[32] = "admin";
-	char szPwd[32] = "1234abcd";
+	char szIpAddr[32] = {0};
+	char szUser[32] = {0};
+	char szPwd[32] = {0};
 	int nPort = 37777;
+	LLONG lRealHandle;
 	SDL_Event event;
-	namedWindow("dahua", CV_WINDOW_NORMAL);
 
 	// init_sdl();
 	init_arcSoft();
@@ -493,6 +493,18 @@ int main()
 	PLAY_SetDisplayCallBack(gPlayPort, fDisplayCB, NULL);
 	PLAY_Play(gPlayPort, NULL);
 
+	cout << "Input device ip address:" << endl;
+	cin >> szIpAddr;
+
+	cout << "Input device port:" << endl;
+	cin >> nPort;
+
+	cout << "Input username:" << endl;
+	cin >> szUser;
+
+	cout << "Input password:" << endl;
+	cin >> szPwd;
+
 	//登陆
 	NET_DEVICEINFO_Ex stLoginInfo = { 0 };
 	int nErrcode = 0;
@@ -501,17 +513,15 @@ int main()
 	                               &nErrcode);
 	if (0 == lLoginHandle) {
 		cout << "Login device failed" << endl;
-		cin >> szIpAddr;
-		return -1;
+		goto end;
 	} else {
 		cout << "Login device success" << endl;
 	}
 
 	//拉流
-	LLONG lRealHandle = CLIENT_RealPlayEx(lLoginHandle, 0, NULL);
+	lRealHandle = CLIENT_RealPlayEx(lLoginHandle, 0, NULL);
 	if (0 == lRealHandle) {
 		cout << "CLIENT_RealPlayEx fail!" << endl;
-		sleep(100000);
 		return -1;
 	}
 	cout << "CLIENT_RealPlayEx success!" << endl;
